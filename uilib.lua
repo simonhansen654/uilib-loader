@@ -20,18 +20,6 @@ UILib:ToggleWatermark(boolean)
 UILib:Step()
 UILib:Destroy()
 
-Example usage:
-local function getPing(raw)
-    local pingAddress = game:FindFirstChild("Stats"):FindFirstChild("PerformanceStats"):FindFirstChild("Ping").Address
-    local ping = memory_read("double", pingAddress + 0xC8)
-
-    if raw then
-        return ping
-    end
-
-    return ("Ping: %sms"):format(math.floor(ping))
-end
-
 ]]
 
 UILib = {}
