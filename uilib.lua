@@ -7,18 +7,13 @@ ESP_FONTSIZE = 7
 BLACK = Color3.new(0, 0, 0)
 
 -- Player references
-local LocalPlayer = game:GetService("Players").LocalPlayer
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
--- Helper functions
+-- Helpers
 local function clamp(value, minValue, maxValue)
-    if value > maxValue then
-        return maxValue
-    elseif value < minValue then
-        return minValue
-    else
-        return value
-    end
+    return math.max(minValue, math.min(value, maxValue))
 end
 
 local function lerp(a, b, t)
@@ -41,9 +36,9 @@ local function removeDrawings(drawings)
     end
 end
 
--- Create a new UILib object
+-- Create UILib
 function UILib.new(title, watermark, watermarkActivity)
-    repeat wait(0.0001) until isrbxactive()
+    repeat wait() until isrbxactive()
 
     local self = setmetatable({}, UILib)
 
@@ -85,13 +80,13 @@ function UILib.new(title, watermark, watermarkActivity)
     self._padding = 6
     self._gradient_detail = 80
 
-    -- Drawing objects container
+    -- Tree
     self._tree = {
         _tabs = {},
         _drawings = {}
     }
 
-    -- Main update loop (replaces :Connect)
+    -- Main update loop (polling inputs)
     spawn(function()
         while true do
             wait(0.03)
@@ -103,124 +98,109 @@ function UILib.new(title, watermark, watermarkActivity)
     return self
 end
 
--- Check if mouse is within bounds
-function UILib._IsMouseWithinBounds(pos, size)
-    local mouse = getMousePos()
-    return mouse.x >= pos.x and mouse.x <= pos.x + size.x
-       and mouse.y >= pos.y and mouse.y <= pos.y + size.y
-end
-
--- Toggle menu visibility
-function UILib.ToggleMenu(self, open)
-    self._open = open
-end
-
--- Toggle watermark
-function UILib.ToggleWatermark(self, enable)
-    self._watermark = enable
-end
-
--- Create a tab
-function UILib.Tab(self, tabName)
-    local tab = {
-        name = tabName,
-        _sections = {},
-        _drawings = {}
-    }
-    table.insert(self._tree._tabs, tab)
-    if not self._active_tab then
-        self._active_tab = tabName
-    end
-    return tabName
-end
-
--- Create a section in a tab
-function UILib.Section(self, tabName, sectionName)
-    for _, tab in ipairs(self._tree._tabs) do
-        if tab.name == tabName then
-            local section = {
-                name = sectionName,
-                _items = {},
-                _drawings = {}
-            }
-            table.insert(tab._sections, section)
-            return sectionName
-        end
-    end
-end
-
--- Add a checkbox
-function UILib.Checkbox(self, tabName, sectionName, label, defaultValue, callback)
-    local tab, section
-    for _, t in ipairs(self._tree._tabs) do
-        if t.name == tabName then
-            tab = t
-            for _, s in ipairs(t._sections) do
-                if s.name == sectionName then
-                    section = s
-                    break
-                end
-            end
-        end
-    end
-    if not section then return end
-
-    local checkbox = {
-        label = label,
-        value = defaultValue,
-        callback = callback
-    }
-
-    table.insert(section._items, checkbox)
-end
-
--- Add a keybind
-function UILib.Keybind(self, tabName, sectionName, label, defaultKey, callback)
-    local tab, section
-    for _, t in ipairs(self._tree._tabs) do
-        if t.name == tabName then
-            tab = t
-            for _, s in ipairs(t._sections) do
-                if s.name == sectionName then
-                    section = s
-                    break
-                end
-            end
-        end
-    end
-    if not section then return end
-
-    local keybind = {
-        label = label,
-        key = defaultKey,
-        callback = callback
-    }
-
-    table.insert(section._items, keybind)
-end
-
--- Poll inputs (replace :Connect)
+-- Input polling
 function UILib:_updateInputs()
     for _, input in pairs(self._inputs) do
         input.held = Mouse:IsButtonPressed(input.id)
     end
 end
 
--- Update UI placeholder (you can expand later)
+-- UI update placeholder
 function UILib:_updateUI()
-    -- Here you would redraw all elements, sliders, color pickers, etc.
+    -- redraw all elements: sliders, buttons, colorpickers, etc.
 end
 
--- Example: Settings tab
-function UILib.CreateSettingsTab(self)
-    local tab = self:Tab("Menu")
-    local section = self:Section(tab, "Settings")
+-- Bounds check
+function UILib._IsMouseWithinBounds(pos, size)
+    local mouse = getMousePos()
+    return mouse.x >= pos.x and mouse.x <= pos.x + size.x
+       and mouse.y >= pos.y and mouse.y <= pos.y + size.y
+end
 
-    self:Keybind(tab, section, "Open Menu", "F1", function()
+-- Toggle menu
+function UILib:ToggleMenu(open)
+    self._open = open
+end
+
+-- Toggle watermark
+function UILib:ToggleWatermark(enable)
+    self._watermark = enable
+end
+
+-- Tabs & Sections
+function UILib:Tab(name)
+    local tab = { name = name, _sections = {}, _drawings = {} }
+    table.insert(self._tree._tabs, tab)
+    if not self._active_tab then self._active_tab = name end
+    return name
+end
+
+function UILib:Section(tabName, sectionName)
+    for _, tab in ipairs(self._tree._tabs) do
+        if tab.name == tabName then
+            local section = { name = sectionName, _items = {}, _drawings = {} }
+            table.insert(tab._sections, section)
+            return sectionName
+        end
+    end
+end
+
+-- Controls
+function UILib:Checkbox(tabName, sectionName, label, defaultValue, callback)
+    local section = self:_findSection(tabName, sectionName)
+    if not section then return end
+    table.insert(section._items, { type="checkbox", label=label, value=defaultValue, callback=callback })
+end
+
+function UILib:Button(tabName, sectionName, label, callback)
+    local section = self:_findSection(tabName, sectionName)
+    if not section then return end
+    table.insert(section._items, { type="button", label=label, callback=callback })
+end
+
+function UILib:Slider(tabName, sectionName, label, min, max, defaultValue, callback)
+    local section = self:_findSection(tabName, sectionName)
+    if not section then return end
+    table.insert(section._items, { type="slider", label=label, min=min, max=max, value=defaultValue, callback=callback })
+end
+
+function UILib:Choice(tabName, sectionName, label, options, defaultIndex, callback)
+    local section = self:_findSection(tabName, sectionName)
+    if not section then return end
+    table.insert(section._items, { type="choice", label=label, options=options, index=defaultIndex, callback=callback })
+end
+
+function UILib:ColorPicker(tabName, sectionName, label, defaultColor, callback)
+    local section = self:_findSection(tabName, sectionName)
+    if not section then return end
+    table.insert(section._items, { type="colorpicker", label=label, color=defaultColor, callback=callback })
+end
+
+function UILib:Keybind(tabName, sectionName, label, defaultKey, callback)
+    local section = self:_findSection(tabName, sectionName)
+    if not section then return end
+    table.insert(section._items, { type="keybind", label=label, key=defaultKey, callback=callback })
+end
+
+-- Helper to find section
+function UILib:_findSection(tabName, sectionName)
+    for _, tab in ipairs(self._tree._tabs) do
+        if tab.name == tabName then
+            for _, s in ipairs(tab._sections) do
+                if s.name == sectionName then return s end
+            end
+        end
+    end
+end
+
+-- Example: Settings Tab
+function UILib:CreateSettingsTab()
+    local tab = self:Tab("Menu")
+    local section = self:Section("Menu", "Settings")
+    self:Keybind("Menu","Settings","Open Menu","F1",function()
         self:ToggleMenu(not self._open)
     end)
-
-    self:Checkbox(tab, section, "Watermark", true, function(value)
-        self:ToggleWatermark(value)
+    self:Checkbox("Menu","Settings","Watermark",true,function(val)
+        self:ToggleWatermark(val)
     end)
 end
