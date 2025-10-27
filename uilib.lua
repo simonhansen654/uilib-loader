@@ -1795,17 +1795,30 @@ local uiSize = Vector2.new(450, 290)
 local checkboxStart = uiPos + Vector2.new(15, 40)
 local spacing = 24
 
--- Ensure all drawings are cleaned up when destroying the UI
-function UILib:Destroy()
-    if self._tree and self._tree._drawings then
-        for _, d in pairs(self._tree._drawings) do
-            if d.Remove then
-                pcall(function() d:Remove() end)
-            end
-        end
-    end
-    self._tree = nil
-end
+-- 🔧 Toggles
+local toggles = {
+    { label = "Inf. Ammo", key = "inf_ammo", enabled = true },
+    { label = "Rapid Fire", key = "rapid_fire", enabled = true },
+    { label = "Force Auto", key = "force_auto", enabled = true },
+    { label = "No Spread", key = "no_spread", enabled = true },
+    { label = "Faster Reload", key = "fast_reload", enabled = true },
+    { label = "HVH Scout", key = "mod_scout", enabled = true },
+    { label = "Speed Knife", key = "mod_knife", enabled = true },
+    { label = "SemiAuto → Auto", key = "mod_ak", enabled = true },
+}
 
--- Return the UILib table
+-- 🧱 UI
+local bg = make("Square", {
+    Position = uiPos,
+    Size = uiSize,
+    Color = Color3.fromRGB(25, 25, 25),
+    Filled = true,
+    Visible = true
+})
+
 return UILib
+-- x11 lib end
+
+
+
+
