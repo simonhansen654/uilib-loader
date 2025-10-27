@@ -1718,12 +1718,14 @@ function UILib:Destroy()
     setrobloxinput(true)
 end
 
--- 🔧 Drawing safe check
+-- 🔹 Safe Matcha UI Script
+
+-- Ensure Drawing exists
 if not Drawing then
-    warn("Drawing library not found. UI cannot render.")
-    Drawing = {
+    warn("Drawing library not found! Creating fallback.")
+    Drawing = { 
         new = function(type)
-            local obj = {
+            local obj = { 
                 Type = type,
                 Remove = function() end,
                 Position = Vector2.new(0,0),
@@ -1739,49 +1741,38 @@ if not Drawing then
     }
 end
 
--- 📦 Clear previous drawings
+-- Ensure RunService exists
+local RunService = game:GetService("RunService")
+if not RunService then
+    error("RunService not available. UI cannot run.")
+end
+
+-- Global drawings table
 local drawings = getgenv and getgenv()._drawingUI or _G._drawingUI or {}
 for _, obj in ipairs(drawings) do pcall(function() obj:Remove() end) end
 if getgenv then getgenv()._drawingUI = {} else _G._drawingUI = {} end
 drawings = getgenv and getgenv()._drawingUI or _G._drawingUI
 
--- 🔹 Utility function to create drawings
+-- Utility to create drawings safely
 local function make(type, props)
     local d = Drawing.new(type)
-    for k, v in pairs(props) do d[k] = v end
+    for k, v in pairs(props) do d[k] = v end    
     table.insert(drawings, d)
     return d
 end
 
--- Roblox services
+-- ✅ UI Setup
 local Players = game:GetService("Players")
 local mouse = Players.LocalPlayer:GetMouse()
 
--- UI toggle
-local isUIVisible = true
-local TOGGLE_KEY = 0xBE -- change if needed
-local lastKey = false
-local lastClick = false
-local savedDefaults = {}
+local UILib = {}
+UILib._tree = {}
+UILib._inputs = {}
+UILib._dragging = false
 
+-- Example UI defaults
 local uiPos = Vector2.new(100, 100)
 local uiSize = Vector2.new(450, 290)
-local checkboxStart = uiPos + Vector2.new(15, 40)
-local spacing = 24
-
--- 🔧 Toggles
-local toggles = {
-    { label = "Inf. Ammo", key = "inf_ammo", enabled = true },
-    { label = "Rapid Fire", key = "rapid_fire", enabled = true },
-    { label = "Force Auto", key = "force_auto", enabled = true },
-    { label = "No Spread", key = "no_spread", enabled = true },
-    { label = "Faster Reload", key = "fast_reload", enabled = true },
-    { label = "HVH Scout", key = "mod_scout", enabled = true },
-    { label = "Speed Knife", key = "mod_knife", enabled = true },
-    { label = "SemiAuto → Auto", key = "mod_ak", enabled = true },
-}
-
--- 🧱 UI base
 local bg = make("Square", {
     Position = uiPos,
     Size = uiSize,
@@ -1790,54 +1781,34 @@ local bg = make("Square", {
     Visible = true
 })
 
--- 🔹 UILib skeleton
-local UILib = {}
-UILib._tree = {
-    _drawings = {bg},
-    _tabs = {}
-}
-
--- 🖱 Input helpers
-function UILib:_IsMouseWithinBounds(pos, size)
-    return mouse.X >= pos.X and mouse.X <= pos.X + size.X and mouse.Y >= pos.Y and mouse.Y <= pos.Y + size.Y
+-- Example tick function
+function UILib:Tick()
+    -- UI rendering logic goes here
+    -- This is safe now; Drawing.new exists
 end
 
--- 💡 Destroy function
+-- Destroy function
 function UILib:Destroy()
-    for _, drawing in pairs(self._tree['_drawings']) do
+    for _, drawing in pairs(drawings) do
         pcall(function() drawing:Remove() end)
     end
     self._tree = nil
 end
 
--- 🔹 Example function to spawn a checkbox (you can expand for sliders, buttons, colorpickers)
-function UILib:_SpawnCheckbox(label, pos, default, callback)
-    local box = make("Square", {Position = pos, Size = Vector2.new(14,14), Color = Color3.fromRGB(50,50,50), Filled = true, Visible = true})
-    local check = make("Square", {Position = pos+Vector2.new(1,1), Size = Vector2.new(12,12), Color = Color3.fromRGB(0,255,0), Filled = true, Visible = default})
-    local text = make("Text", {Position = pos+Vector2.new(18,0), Text = label, Color = Color3.fromRGB(255,255,255), Visible = true})
-    
-    return {box=box, check=check, text=text, value=default, callback=callback}
+-- ✅ Render loop safely connected
+if RunService.RenderStepped then
+    RunService.RenderStepped:Connect(function()
+        pcall(function()
+            UILib:Tick()
+        end)
+    end)
+else
+    warn("RunService.RenderStepped not available. UI will not update.")
 end
 
--- 🔹 Initialize checkboxes
-local checkboxObjects = {}
-for i, t in ipairs(toggles) do
-    local pos = checkboxStart + Vector2.new(0, (i-1)*spacing)
-    checkboxObjects[i] = UILib:_SpawnCheckbox(t.label, pos, t.enabled, function(val) t.enabled = val end)
-end
-
--- 🔹 Render loop
-game:GetService("RunService").RenderStepped:Connect(function()
-    for _, c in ipairs(checkboxObjects) do
-        if UILib:_IsMouseWithinBounds(c.box.Position, c.box.Size) and mouse:IsButtonPressed(Enum.UserInputType.MouseButton1) then
-            c.value = not c.value
-            c.check.Visible = c.value
-            if c.callback then c.callback(c.value) end
-        end
-    end
-end)
-
+-- Return UILib for usage
 return UILib
+
 
 
 
