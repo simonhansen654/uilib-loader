@@ -1718,42 +1718,48 @@ function UILib:Destroy()
     setrobloxinput(true)
 end
 
--- Check for Drawing library
-local Drawing = Drawing or (getgenv and getgenv().Drawing)
-if not Drawing or not Drawing.new then
-    warn("Drawing library not found! UI will not function.")
+-- 🔧 Drawing safe check
+if not Drawing then
+    warn("Drawing library not found. UI cannot render.")
+    Drawing = {
+        new = function(type)
+            local obj = {
+                Type = type,
+                Remove = function() end,
+                Position = Vector2.new(0,0),
+                Size = Vector2.new(0,0),
+                Color = Color3.fromRGB(255,255,255),
+                Filled = false,
+                Text = "",
+                Transparency = 1,
+                Visible = false
+            }
+            return obj
+        end
+    }
 end
 
--- Table to track drawings
+-- 📦 Clear previous drawings
 local drawings = getgenv and getgenv()._drawingUI or _G._drawingUI or {}
-if getgenv then getgenv()._drawingUI = drawings else _G._drawingUI = drawings end
+for _, obj in ipairs(drawings) do pcall(function() obj:Remove() end) end
+if getgenv then getgenv()._drawingUI = {} else _G._drawingUI = {} end
+drawings = getgenv and getgenv()._drawingUI or _G._drawingUI
 
--- Safe make function
+-- 🔹 Utility function to create drawings
 local function make(type, props)
-    if not Drawing or not Drawing.new then
-        -- Fallback: create dummy table to avoid crashes
-        local dummy = {}
-        for k, v in pairs(props) do
-            dummy[k] = v
-        end
-        table.insert(drawings, dummy)
-        return dummy
-    end
-
-    -- Create actual Drawing object
     local d = Drawing.new(type)
-    for k, v in pairs(props) do
-        pcall(function() d[k] = v end) -- safe assignment
-    end
+    for k, v in pairs(props) do d[k] = v end
     table.insert(drawings, d)
     return d
 end
 
+-- Roblox services
 local Players = game:GetService("Players")
 local mouse = Players.LocalPlayer:GetMouse()
 
+-- UI toggle
 local isUIVisible = true
-local TOGGLE_KEY = 0xBE -- 
+local TOGGLE_KEY = 0xBE -- change if needed
 local lastKey = false
 local lastClick = false
 local savedDefaults = {}
@@ -1775,7 +1781,7 @@ local toggles = {
     { label = "SemiAuto → Auto", key = "mod_ak", enabled = true },
 }
 
--- 🧱 UI
+-- 🧱 UI base
 local bg = make("Square", {
     Position = uiPos,
     Size = uiSize,
@@ -1784,8 +1790,55 @@ local bg = make("Square", {
     Visible = true
 })
 
+-- 🔹 UILib skeleton
+local UILib = {}
+UILib._tree = {
+    _drawings = {bg},
+    _tabs = {}
+}
+
+-- 🖱 Input helpers
+function UILib:_IsMouseWithinBounds(pos, size)
+    return mouse.X >= pos.X and mouse.X <= pos.X + size.X and mouse.Y >= pos.Y and mouse.Y <= pos.Y + size.Y
+end
+
+-- 💡 Destroy function
+function UILib:Destroy()
+    for _, drawing in pairs(self._tree['_drawings']) do
+        pcall(function() drawing:Remove() end)
+    end
+    self._tree = nil
+end
+
+-- 🔹 Example function to spawn a checkbox (you can expand for sliders, buttons, colorpickers)
+function UILib:_SpawnCheckbox(label, pos, default, callback)
+    local box = make("Square", {Position = pos, Size = Vector2.new(14,14), Color = Color3.fromRGB(50,50,50), Filled = true, Visible = true})
+    local check = make("Square", {Position = pos+Vector2.new(1,1), Size = Vector2.new(12,12), Color = Color3.fromRGB(0,255,0), Filled = true, Visible = default})
+    local text = make("Text", {Position = pos+Vector2.new(18,0), Text = label, Color = Color3.fromRGB(255,255,255), Visible = true})
+    
+    return {box=box, check=check, text=text, value=default, callback=callback}
+end
+
+-- 🔹 Initialize checkboxes
+local checkboxObjects = {}
+for i, t in ipairs(toggles) do
+    local pos = checkboxStart + Vector2.new(0, (i-1)*spacing)
+    checkboxObjects[i] = UILib:_SpawnCheckbox(t.label, pos, t.enabled, function(val) t.enabled = val end)
+end
+
+-- 🔹 Render loop
+game:GetService("RunService").RenderStepped:Connect(function()
+    for _, c in ipairs(checkboxObjects) do
+        if UILib:_IsMouseWithinBounds(c.box.Position, c.box.Size) and mouse:IsButtonPressed(Enum.UserInputType.MouseButton1) then
+            c.value = not c.value
+            c.check.Visible = c.value
+            if c.callback then c.callback(c.value) end
+        end
+    end
+end)
+
 return UILib
--- x11 lib end
+
 
 
 
