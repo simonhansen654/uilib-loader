@@ -1795,14 +1795,6 @@ local uiSize = Vector2.new(450, 290)
 local checkboxStart = uiPos + Vector2.new(15, 40)
 local spacing = 24
 
--- 🔧 Clean up helper drawings if needed
-local function destroyHelperDrawings()
-    -- nothing to destroy, placeholder for any future helper drawings
-end
-
--- 🧱 UI base placeholder (no undefined functions)
-local bg = {} -- placeholder table for background elements if needed
-
 -- Ensure all drawings are cleaned up when destroying the UI
 function UILib:Destroy()
     if self._tree and self._tree._drawings then
