@@ -33,7 +33,6 @@ local function getPing(raw)
 end
 
 local UILib = require('workspace/x11-colorpicker.lua') -- import however you prefer!
-local myGui = UILib.new('chatgpthaxx', Vector2.new(320, 380), {getPing})
 
 local visualsTab = myGui:Tab('Visuals')
 local espSection = myGui:Section(visualsTab, 'General')
