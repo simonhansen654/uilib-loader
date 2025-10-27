@@ -1718,15 +1718,33 @@ function UILib:Destroy()
     setrobloxinput(true)
 end
 
-local drawings = getgenv and getgenv()._drawingUI or _G._drawingUI or {}
-for _, obj in ipairs(drawings) do pcall(function() obj:Remove() end) end
-if getgenv then getgenv()._drawingUI = {} else _G._drawingUI = {} end
-drawings = getgenv and getgenv()._drawingUI or _G._drawingUI
+-- Check for Drawing library
+local Drawing = Drawing or (getgenv and getgenv().Drawing)
+if not Drawing or not Drawing.new then
+    warn("Drawing library not found! UI will not function.")
+end
 
--- 📦 Utilities
+-- Table to track drawings
+local drawings = getgenv and getgenv()._drawingUI or _G._drawingUI or {}
+if getgenv then getgenv()._drawingUI = drawings else _G._drawingUI = drawings end
+
+-- Safe make function
 local function make(type, props)
+    if not Drawing or not Drawing.new then
+        -- Fallback: create dummy table to avoid crashes
+        local dummy = {}
+        for k, v in pairs(props) do
+            dummy[k] = v
+        end
+        table.insert(drawings, dummy)
+        return dummy
+    end
+
+    -- Create actual Drawing object
     local d = Drawing.new(type)
-    for k, v in pairs(props) do d[k] = v end    
+    for k, v in pairs(props) do
+        pcall(function() d[k] = v end) -- safe assignment
+    end
     table.insert(drawings, d)
     return d
 end
