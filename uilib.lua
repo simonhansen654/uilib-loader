@@ -32,43 +32,6 @@ local function getPing(raw)
     return ("Ping: %sms"):format(math.floor(ping))
 end
 
-local UILib = require('workspace/x11-colorpicker.lua') -- import however you prefer!
-
-local visualsTab = myGui:Tab('Visuals')
-local espSection = myGui:Section(visualsTab, 'General')
-myGui:Checkbox(visualsTab, espSection, 'Master', false, function(state)
-    printl('ESP:', state)
-end)
-myGui:Slider(visualsTab, espSection, 'Distance', 2500, function(value)
-    printl('ESP distance:', value)
-end, 100, 2500, 100, ' studs')
-
-local playerEspSection = myGui:Section(visualsTab, 'Players')
-myGui:Checkbox(visualsTab, playerEspSection, 'BBox', false, function(state)
-    printl('BBox:', state)
-end)
-myGui:Checkbox(visualsTab, playerEspSection, 'Name', false, function(state)
-    printl('Name:', state)
-end)
-myGui:Checkbox(visualsTab, playerEspSection, 'Distance', false, function(state)
-    printl('Distance:', state)
-end)
-myGui:Choice(visualsTab, playerEspSection, 'Flags', {}, function(values)
-    printl('Flags:', table.concat(values, ', '))
-end, {'Health', 'Humanoid state'}, true)
-myGui:Colorpicker(visualsTab, playerEspSection, 'Box color', {255, 0, 0}, nil)
-myGui:Keybind(visualsTab, playerEspSection, 'Toggle', 'm3', nil, 'Toggle')
-myGui:CreateSettingsTab()
-local running = true
-myGui:Checkbox(visualsTab, playerEspSection, 'Unload', false, function(state)
-    running = false
-end)
-while running do
-    myGui:Step()
-    wait(0.0015)
-end
-myGui:Destroy()
-
 ]]
 
 UILib = {}
