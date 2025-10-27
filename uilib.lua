@@ -1,4 +1,4 @@
--- Simple Roblox UI Library
+-- Full Roblox UI Library
 UILib = {}
 UILib.__index = UILib
 
@@ -21,24 +21,20 @@ local function clamp(value, minValue, maxValue)
     end
 end
 
--- Linear interpolation
 local function lerp(a, b, t)
     return a + (b - a) * t
 end
 
--- Mouse position as Vector2
 local function getMousePos()
     return Vector2.new(Mouse.X, Mouse.Y)
 end
 
--- Hide drawings
 local function hideDrawings(drawings)
     for _, d in pairs(drawings) do
         d.Visible = false
     end
 end
 
--- Remove drawings
 local function removeDrawings(drawings)
     for _, d in ipairs(drawings) do
         d:Remove()
@@ -52,12 +48,7 @@ function UILib.new(title, watermark, watermarkActivity)
     local self = setmetatable({}, UILib)
 
     -- Input tracking
-    self._inputs = {
-        m1 = {id = 1, held = false, click = false},
-        m2 = {id = 2, held = false, click = false},
-        -- Add more keys as needed
-        f1 = {id = 112, held = false, click = false},
-    }
+    self._inputs = {f1 = {id = 112, held = false, click = false}}
 
     -- Menu settings
     self._open = true
@@ -92,23 +83,20 @@ function UILib.new(title, watermark, watermarkActivity)
     self._padding = 6
     self._gradient_detail = 80
 
-    -- Drawing objects container
-    self._tree = {
-        _tabs = {},
-        _drawings = {}
-    }
+    -- Tree for drawing objects
+    self._tree = {_tabs = {}, _drawings = {}}
 
     return self
 end
 
--- Check if mouse is within bounds
+-- Helper: Mouse bounds check
 function UILib._IsMouseWithinBounds(pos, size)
     local mouse = getMousePos()
     return mouse.x >= pos.x and mouse.x <= pos.x + size.x
        and mouse.y >= pos.y and mouse.y <= pos.y + size.y
 end
 
--- Toggle menu visibility
+-- Toggle menu
 function UILib.ToggleMenu(self, open)
     self._open = open
 end
@@ -118,13 +106,9 @@ function UILib.ToggleWatermark(self, enable)
     self._watermark = enable
 end
 
--- Create a tab
+-- Create tab
 function UILib.Tab(self, tabName)
-    local tab = {
-        name = tabName,
-        _sections = {},
-        _drawings = {}
-    }
+    local tab = {name = tabName, _sections = {}, _drawings = {}}
     table.insert(self._tree._tabs, tab)
     if not self._active_tab then
         self._active_tab = tabName
@@ -132,47 +116,116 @@ function UILib.Tab(self, tabName)
     return tabName
 end
 
--- Create a section in a tab
+-- Create section
 function UILib.Section(self, tabName, sectionName)
     for _, tab in ipairs(self._tree._tabs) do
         if tab.name == tabName then
-            local section = {
-                name = sectionName,
-                _items = {},
-                _drawings = {}
-            }
+            local section = {name = sectionName, _items = {}, _drawings = {}}
             table.insert(tab._sections, section)
             return sectionName
         end
     end
 end
 
--- Add a checkbox to a section
+-- Add Checkbox
 function UILib.Checkbox(self, tabName, sectionName, label, defaultValue, callback)
     local tab, section
     for _, t in ipairs(self._tree._tabs) do
-        if t.name == tabName then
-            tab = t
-            for _, s in ipairs(t._sections) do
-                if s.name == sectionName then
-                    section = s
-                    break
-                end
-            end
+        if t.name == tabName then tab = t end
+    end
+    if tab then
+        for _, s in ipairs(tab._sections) do
+            if s.name == sectionName then section = s end
         end
     end
     if not section then return end
 
-    local checkbox = {
-        label = label,
-        value = defaultValue,
-        callback = callback
-    }
-
+    local checkbox = {label = label, value = defaultValue, callback = callback}
     table.insert(section._items, checkbox)
 end
 
--- Example: Create a settings tab
+-- Add Slider
+function UILib.Slider(self, tabName, sectionName, label, minValue, maxValue, defaultValue, callback)
+    local tab, section
+    for _, t in ipairs(self._tree._tabs) do if t.name==tabName then tab=t end end
+    if tab then for _, s in ipairs(tab._sections) do if s.name==sectionName then section=s end end end
+    if not section then return end
+
+    local slider = {
+        label = label,
+        min = minValue,
+        max = maxValue,
+        value = clamp(defaultValue, minValue, maxValue),
+        callback = callback
+    }
+    table.insert(section._items, slider)
+end
+
+-- Add Choice (Dropdown)
+function UILib.Choice(self, tabName, sectionName, label, options, defaultValue, callback)
+    local tab, section
+    for _, t in ipairs(self._tree._tabs) do if t.name==tabName then tab=t end end
+    if tab then for _, s in ipairs(tab._sections) do if s.name==sectionName then section=s end end end
+    if not section then return end
+
+    local choice = {
+        label = label,
+        options = options,
+        value = defaultValue or options[1],
+        callback = callback
+    }
+    table.insert(section._items, choice)
+end
+
+-- Add Colorpicker
+function UILib.Colorpicker(self, tabName, sectionName, label, defaultValue, callback)
+    local tab, section
+    for _, t in ipairs(self._tree._tabs) do if t.name==tabName then tab=t end end
+    if tab then for _, s in ipairs(tab._sections) do if s.name==sectionName then section=s end end end
+    if not section then return end
+
+    local colorpicker = {
+        label = label,
+        value = defaultValue or Color3.new(1,1,1),
+        callback = callback
+    }
+    table.insert(section._items, colorpicker)
+end
+
+-- Add Button
+function UILib.Button(self, tabName, sectionName, label, callback)
+    local tab, section
+    for _, t in ipairs(self._tree._tabs) do if t.name==tabName then tab=t end end
+    if tab then for _, s in ipairs(tab._sections) do if s.name==sectionName then section=s end end end
+    if not section then return end
+
+    local button = {label=label, callback=callback}
+    table.insert(section._items, button)
+end
+
+-- Add Keybind
+function UILib.Keybind(self, tabName, sectionName, label, defaultKey, callback)
+    local tab, section
+    for _, t in ipairs(self._tree._tabs) do if t.name==tabName then tab=t end end
+    if tab then for _, s in ipairs(tab._sections) do if s.name==sectionName then section=s end end end
+    if not section then return end
+
+    local keybind = {label=label, key=defaultKey, callback=callback}
+    table.insert(section._items, keybind)
+end
+
+-- Add Step/Loop toggle
+function UILib.StepLoop(self, tabName, sectionName, label, defaultValue, callback)
+    local tab, section
+    for _, t in ipairs(self._tree._tabs) do if t.name==tabName then tab=t end end
+    if tab then for _, s in ipairs(tab._sections) do if s.name==sectionName then section=s end end end
+    if not section then return end
+
+    local loopToggle = {label=label, value=defaultValue, callback=callback}
+    table.insert(section._items, loopToggle)
+end
+
+-- Example: Create settings tab with all
 function UILib.CreateSettingsTab(self)
     local tab = self:Tab("Menu")
     local section = self:Section(tab, "Settings")
@@ -181,7 +234,15 @@ function UILib.CreateSettingsTab(self)
         self:ToggleMenu(not self._open)
     end)
 
-    self:Checkbox(tab, section, "Watermark", true, function(value)
-        self:ToggleWatermark(value)
+    self:Checkbox(tab, section, "Watermark", true, function(v)
+        self:ToggleWatermark(v)
     end)
+
+    self:Slider(tab, section, "Example Slider", 0, 100, 50, function(v) print("Slider", v) end)
+    self:Choice(tab, section, "Example Choice", {"Option1","Option2","Option3"}, "Option1", function(v) print("Choice", v) end)
+    self:Colorpicker(tab, section, "Example Color", Color3.fromRGB(255,0,0), function(v) print("Color", v) end)
+    self:Button(tab, section, "Example Button", function() print("Button Pressed") end)
+    self:StepLoop(tab, section, "Loop Toggle", false, function(v) print("Loop:", v) end)
 end
+
+return UILib
