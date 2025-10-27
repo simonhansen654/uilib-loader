@@ -8,6 +8,7 @@ BLACK = Color3.new(0, 0, 0)
 
 -- Player references
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
@@ -86,6 +87,17 @@ function UILib.new(title, watermark, watermarkActivity)
         _drawings = {}
     }
 
+    -- Input blocking
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if self._open then
+            -- Prevent the game from processing mouse clicks when menu is open
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or
+               input.UserInputType == Enum.UserInputType.MouseButton2 then
+                gameProcessed = true
+            end
+        end
+    end)
+
     -- Main update loop (polling inputs)
     spawn(function()
         while true do
@@ -107,7 +119,31 @@ end
 
 -- UI update placeholder
 function UILib:_updateUI()
-    -- redraw all elements: sliders, buttons, colorpickers, etc.
+    -- redraw all elements: sliders, buttons, colorpickers, dropdowns, etc.
+    -- handle drag
+    if self._dragging then
+        local mousePos = getMousePos()
+        self.x = mousePos.x - self._drag_offset.X
+        self.y = mousePos.y - self._drag_offset.Y
+    end
+
+    -- handle watermark
+    if self._watermark then
+        if not self._watermark_label then
+            self._watermark_label = Drawing.new("Text")
+            self._watermark_label.Size = 16
+            self._watermark_label.Color = self._color_accent
+            self._watermark_label.Position = Vector2.new(10, 10)
+            self._watermark_label.Font = 2
+            self._watermark_label.Text = self.identity
+            self._watermark_label.Visible = true
+        else
+            self._watermark_label.Text = self.identity
+            self._watermark_label.Visible = true
+        end
+    elseif self._watermark_label then
+        self._watermark_label.Visible = false
+    end
 end
 
 -- Bounds check
@@ -138,10 +174,20 @@ end
 function UILib:Section(tabName, sectionName)
     for _, tab in ipairs(self._tree._tabs) do
         if tab.name == tabName then
-            local section = { name = sectionName, _items = {}, _drawings = {} }
+            local section = { name = sectionName, _items = {}, _drawings = {}, _subsections = {} }
             table.insert(tab._sections, section)
             return sectionName
         end
+    end
+end
+
+-- Nested section helper
+function UILib:SubSection(tabName, sectionName, subName)
+    local section = self:_findSection(tabName, sectionName)
+    if section then
+        local subsection = { name = subName, _items = {}, _drawings = {} }
+        table.insert(section._subsections, subsection)
+        return subName
     end
 end
 
@@ -167,7 +213,7 @@ end
 function UILib:Choice(tabName, sectionName, label, options, defaultIndex, callback)
     local section = self:_findSection(tabName, sectionName)
     if not section then return end
-    table.insert(section._items, { type="choice", label=label, options=options, index=defaultIndex, callback=callback })
+    table.insert(section._items, { type="dropdown", label=label, options=options, index=defaultIndex, callback=callback, open=false })
 end
 
 function UILib:ColorPicker(tabName, sectionName, label, defaultColor, callback)
@@ -180,6 +226,34 @@ function UILib:Keybind(tabName, sectionName, label, defaultKey, callback)
     local section = self:_findSection(tabName, sectionName)
     if not section then return end
     table.insert(section._items, { type="keybind", label=label, key=defaultKey, callback=callback })
+end
+
+-- Toggle all / none helper
+function UILib:ToggleAll(sectionName, enable)
+    for _, tab in ipairs(self._tree._tabs) do
+        for _, s in ipairs(tab._sections) do
+            if s.name == sectionName then
+                for _, item in ipairs(s._items) do
+                    if item.type == "checkbox" then
+                        item.value = enable
+                        if item.callback then
+                            item.callback(enable)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Drag handling
+function UILib:StartDrag(mousePos)
+    self._dragging = true
+    self._drag_offset = Vector2.new(mousePos.X - self.x, mousePos.Y - self.y)
+end
+
+function UILib:StopDrag()
+    self._dragging = false
 end
 
 -- Helper to find section
